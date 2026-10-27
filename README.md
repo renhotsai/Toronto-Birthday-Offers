@@ -55,9 +55,9 @@ TEST_DATABASE_URL=postgres://...可以清空的測試資料庫... npm test
 
 ## 部署（Vercel + Neon）
 
-1. **Neon**：已建立專案 `toronto-birthday-offers`（`aws-us-east-1`），資料表和第一批資料都已匯入。到 Neon Console 複製 **pooled** connection string。
-2. **Vercel**：匯入這個 GitHub repo，並設定以下環境變數：
-   - `DATABASE_URL`：上一步複製的 connection string
+1. **資料庫**：在 Vercel 專案的 Storage 連接 Neon，Vercel 會自動設定 `DATABASE_URL` 和 `DATABASE_URL_UNPOOLED`。
+   - 每次部署時 `vercel-build` 會自動跑 `db:deploy`：先套用 migration，再匯入 seed。seed 可以重複跑，不會重複寫入或覆蓋資料。
+2. **Vercel 環境變數**：
    - `BETTER_AUTH_SECRET`
    - `BETTER_AUTH_URL` 和 `NEXT_PUBLIC_SITE_URL`：都填 `https://你的網址.vercel.app`
    - `ADMIN_EMAILS`
@@ -67,7 +67,7 @@ TEST_DATABASE_URL=postgres://...可以清空的測試資料庫... npm test
    1. 到 Google Cloud Console，進入 APIs & Services → Credentials，建立 OAuth client ID（Web application）。
    2. Authorized redirect URI 填 `https://你的網址/api/auth/callback/google`，本機開發另外加 `http://localhost:3000/api/auth/callback/google`。
 4. **Email 登入**：到 [Resend](https://resend.com) 註冊（免費方案每月 3,000 封）。要寄信給任何人，必須先驗證一個網域；只用 `onboarding@resend.dev` 時，只能寄給你自己的 email。
-5. **之後改資料表**：修改 `src/db/schema.ts`，執行 `npm run db:generate`，再對 Neon 執行 `npm run db:migrate`。
+5. **之後改資料表**：修改 `src/db/schema.ts`，執行 `npm run db:generate`，把產生的 migration 一起 commit。下次部署時會自動套用。
 
 Apple 登入需要 Apple Developer 帳號（每年 US$99），v1 先不做。
 
