@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { authBaseURL } from "@/lib/auth-url";
 import { overpassQuery, parseOverpass } from "@/lib/osm";
 import { distanceKm, likelyExpired, slugify, verificationStatus } from "@/lib/status";
 import { submissionSchema } from "@/lib/validation";
@@ -80,5 +81,19 @@ describe("OpenStreetMap parsing", () => {
       { osmId: "node/1", lat: 43.6, lng: -79.4, name: "Tims", address: "10 King St, Toronto" },
       { osmId: "way/2", lat: 43.7, lng: -79.3, name: null, address: null },
     ]);
+  });
+});
+
+describe("authBaseURL", () => {
+  const site = "https://toronto-birthday-offers.vercel.app";
+  it("allows only the canonical host outside Vercel", () => {
+    expect(authBaseURL({ BETTER_AUTH_URL: "http://localhost:3000" }, site)).toEqual({ allowedHosts: ["localhost:3000"], fallback: "http://localhost:3000" });
+  });
+  it("adds the deployment's own Vercel hosts on a preview", () => {
+    const env = { VERCEL_URL: "tbo-abc123-team.vercel.app", VERCEL_BRANCH_URL: "tbo-git-feature-team.vercel.app" };
+    expect(authBaseURL(env, site)).toEqual({
+      allowedHosts: ["toronto-birthday-offers.vercel.app", "tbo-abc123-team.vercel.app", "tbo-git-feature-team.vercel.app"],
+      fallback: site,
+    });
   });
 });

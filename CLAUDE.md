@@ -57,6 +57,7 @@ Never `pkill -f` a pattern that also matches your own shell command — kill by 
 ## Deploy & data
 - Vercel runs `vercel-build` = `db:deploy` (migrate + idempotent seed) then `next build`, using `DATABASE_URL_UNPOOLED` when present. Schema changes ship by committing migrations.
 - Production DB is the Neon database attached through **Vercel Storage**. The separate Neon project `toronto-birthday-offers` (billowing-morning-60401060) is an unused leftover — don't migrate or seed it.
+- Preview deployments: Better Auth's `baseURL` is dynamic (`src/lib/auth-url.ts`) — the canonical host plus the deployment's own `VERCEL_URL` / `VERCEL_BRANCH_URL`, so magic-link sign-in works on previews (Google sign-in doesn't). Preview env vars and Neon Preview Branching are set in the dashboard (#12); don't set `BETTER_AUTH_URL` for Preview.
 - The Vercel connector is **read-only** for this project (deployments, logs, fetching URLs work; creating projects or env vars returns 403). Ask the owner to change env vars in the dashboard.
 - Never write secrets into the repo, issues or PRs.
 
