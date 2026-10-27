@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #fffaf5;
+  --surface: #ffffff;
+  --fg: #2b2220;
+  --muted: #7a6a65;
+  --border: #eaded6;
+  --accent: #d93a5e;
+  --accent-fg: #ffffff;
+  --accent-soft: #fde6ec;
+  --ok: #15803d;
+  --ok-soft: #dcfce7;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --neutral-soft: #f1ebe7;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1716;
+    --surface: #262120;
+    --fg: #f3ebe7;
+    --muted: #b3a49e;
+    --border: #3b3330;
+    --accent: #ff6b8b;
+    --accent-fg: #1b1716;
+    --accent-soft: #46262e;
+    --ok: #4ade80;
+    --ok-soft: #14301f;
+    --warn: #fbbf24;
+    --warn-soft: #3d2f12;
+    --neutral-soft: #332c2a;
+    color-scheme: dark;
+  }
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-fg: var(--accent-fg);
+  --color-accent-soft: var(--accent-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-neutral-soft: var(--neutral-soft);
+  --font-sans: system-ui, -apple-system, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-1 rounded-full whitespace-nowrap border border-border bg-surface px-3.5 py-1.5 text-sm font-medium transition hover:border-accent disabled:cursor-default disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply border-accent bg-accent text-accent-fg hover:opacity-90;
+  }
+  .chip {
+    @apply rounded-full border border-border bg-surface px-3 py-1 text-sm whitespace-nowrap;
+  }
+  .chip[aria-pressed="true"] {
+    @apply border-accent bg-accent-soft;
+  }
+  .card {
+    @apply rounded-2xl border border-border bg-surface p-4 shadow-sm;
+  }
+  .input {
+    @apply w-full rounded-xl border border-border bg-bg px-3 py-2 text-sm outline-none focus:border-accent;
+  }
+  .label {
+    @apply flex flex-col gap-1 text-sm font-medium;
+  }
+  .tag {
+    @apply rounded-full bg-neutral-soft px-2 py-0.5 text-xs;
+  }
+}
+
+.leaflet-container {
+  font: inherit;
+}
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+  background: var(--surface);
+  color: var(--fg);
+}
