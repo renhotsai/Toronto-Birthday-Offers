@@ -7,6 +7,10 @@ export const REPORT_KINDS = ["not_participating", "closed", "wrong_location"] as
 export const ROLES = ["user", "moderator", "admin"] as const;
 
 export type Category = (typeof CATEGORIES)[number];
+
+export const CATEGORY_ICON: Record<Category, string> = {
+  food: "🍔", drink: "☕", dessert: "🍦", beauty: "💄", retail: "🛍️", entertainment: "🎟️", other: "🎁",
+};
 export type BrandKind = (typeof BRAND_KINDS)[number];
 export type Window = (typeof WINDOWS)[number];
 export type ReportKind = (typeof REPORT_KINDS)[number];

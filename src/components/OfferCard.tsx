@@ -2,13 +2,10 @@
 
 import Link from "next/link";
 import { getDictionary, type Locale } from "@/i18n";
+import { CATEGORY_ICON } from "@/lib/constants";
 import type { OfferSummary } from "@/lib/data";
 import { likelyExpired, verificationStatus, type VerificationStatus } from "@/lib/status";
 import { VoteButtons } from "./VoteButtons";
-
-export const CATEGORY_ICON: Record<string, string> = {
-  food: "🍔", drink: "☕", dessert: "🍦", beauty: "💄", retail: "🛍️", entertainment: "🎟️", other: "🎁",
-};
 
 const STATUS_STYLE: Record<VerificationStatus, string> = {
   verified: "bg-ok-soft text-ok",

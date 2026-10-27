@@ -3,12 +3,12 @@
 import dynamic from "next/dynamic";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
-import { CATEGORIES, WINDOWS, type Category, type Window } from "@/lib/constants";
+import { CATEGORIES, CATEGORY_ICON, WINDOWS, type Category, type Window } from "@/lib/constants";
 import { getDictionary, type Locale } from "@/i18n";
 import type { MapLocation, OfferSummary } from "@/lib/data";
 import { distanceKm } from "@/lib/status";
 import { escapeHtml, type MapPoint } from "./map-utils";
-import { CATEGORY_ICON, OfferCard } from "./OfferCard";
+import { OfferCard } from "./OfferCard";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <div className="h-[65vh] animate-pulse rounded-2xl bg-neutral-soft" /> });
 

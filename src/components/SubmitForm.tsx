@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { submitOffer } from "@/app/actions";
 import { getDictionary, type Locale } from "@/i18n";
-import { BRAND_KINDS, CATEGORIES, type BrandKind, type Category } from "@/lib/constants";
+import { BRAND_KINDS, CATEGORIES, CATEGORY_ICON, type BrandKind, type Category } from "@/lib/constants";
 import { SITE } from "@/lib/site";
-import { CATEGORY_ICON } from "./OfferCard";
 import { OfferFields, emptyOffer, type OfferDraft } from "./OfferFields";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <div className="h-64 animate-pulse rounded-2xl bg-neutral-soft" /> });
