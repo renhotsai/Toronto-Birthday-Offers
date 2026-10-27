@@ -120,10 +120,11 @@ export const en = {
   },
   admin: {
     title: "Moderation",
-    queue: "Needs review",
+    queue: "Review queue",
     stale: "Needs re-check",
-    reports: "Location reports",
+    reports: "Reports",
     users: "Users",
+    tabs: "Admin sections",
     verify: "Mark verified",
     hide: "Hide",
     mergeInto: "Merge into offer #",
