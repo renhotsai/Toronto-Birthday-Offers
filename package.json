@@ -1,0 +1,16 @@
+{
+  "name": "toronto-birthday-offers",
+  "version": "0.1.0",
+  "description": "多倫多生日優惠地圖 — 一起分享生日能拿的免費好康",
+  "type": "module",
+  "main": "server.js",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test"
+  },
+  "license": "MIT"
+}

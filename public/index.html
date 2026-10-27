@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>多倫多生日優惠地圖</title>
+  <meta name="description" content="大家一起分享多倫多的生日免費好康與優惠。">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎂</text></svg>">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 data-i18n="title">🎂 多倫多生日優惠地圖</h1>
+    <div class="topbar-actions">
+      <button id="lang-toggle" class="ghost" type="button">EN</button>
+      <button id="add-btn" class="primary" type="button" data-i18n="add">＋ 分享優惠</button>
+    </div>
+  </header>
+
+  <section class="filters">
+    <input id="search" type="search" data-i18n-placeholder="searchPlaceholder" placeholder="搜尋店名、優惠、地址…">
+    <div id="categories" class="chips" role="group"></div>
+  </section>
+
+  <main class="layout">
+    <div id="map" aria-label="map"></div>
+    <aside class="list-panel">
+      <p id="count" class="muted"></p>
+      <ul id="offer-list" class="offer-list"></ul>
+      <p class="muted disclaimer" data-i18n="disclaimer">優惠由社群分享，條款可能已變動，出發前請先向店家確認。</p>
+    </aside>
+  </main>
+
+  <div id="pick-banner" class="pick-banner" hidden>
+    <span data-i18n="pickHint">點一下地圖來放置優惠位置</span>
+    <button id="pick-cancel" class="ghost" type="button" data-i18n="cancel">取消</button>
+  </div>
+
+  <dialog id="add-dialog">
+    <form id="add-form" method="dialog">
+      <h2 data-i18n="formTitle">分享一個生日優惠</h2>
+
+      <label><span data-i18n="fName">店家名稱 *</span>
+        <input name="name" required maxlength="80">
+      </label>
+      <label><span data-i18n="fCategory">類別 *</span>
+        <select name="category" id="category-select" required></select>
+      </label>
+      <label><span data-i18n="fDescription">優惠內容 *</span>
+        <textarea name="description" required maxlength="300" rows="2" data-i18n-placeholder="fDescriptionPh"></textarea>
+      </label>
+      <label><span data-i18n="fConditions">使用條件</span>
+        <textarea name="conditions" maxlength="300" rows="2" data-i18n-placeholder="fConditionsPh"></textarea>
+      </label>
+      <label><span data-i18n="fWindow">可使用期間</span>
+        <select name="valid_window" id="window-select"></select>
+      </label>
+
+      <fieldset class="location">
+        <legend data-i18n="fLocation">位置 *</legend>
+        <div class="row">
+          <input name="address" id="address-input" maxlength="160" data-i18n-placeholder="fAddressPh">
+          <button type="button" id="geocode-btn" class="ghost" data-i18n="find">搜尋</button>
+        </div>
+        <div class="row">
+          <button type="button" id="pick-btn" class="ghost" data-i18n="pickOnMap">📍 在地圖上點選</button>
+          <span id="coords" class="muted"></span>
+        </div>
+        <input type="hidden" name="lat">
+        <input type="hidden" name="lng">
+      </fieldset>
+
+      <label><span data-i18n="fUrl">相關連結</span>
+        <input name="url" type="url" maxlength="300" placeholder="https://">
+      </label>
+      <label><span data-i18n="fNickname">你的暱稱</span>
+        <input name="submitted_by" maxlength="40">
+      </label>
+
+      <p id="form-error" class="error" role="alert"></p>
+      <div class="dialog-actions">
+        <button type="button" id="form-cancel" class="ghost" data-i18n="cancel">取消</button>
+        <button type="submit" class="primary" data-i18n="submit">送出</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="app.js" type="module"></script>
+</body>
+</html>
