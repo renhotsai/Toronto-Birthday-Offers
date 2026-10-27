@@ -10,8 +10,9 @@ Next.js 16 App Router · TypeScript (strict) · Tailwind 4 · Drizzle ORM + `pg`
 
 ## Language: TypeScript first
 - Write everything in TypeScript (`.ts` / `.tsx`; standalone Node scripts as `.mts` run with `tsx`).
-- Use JavaScript only when a tool genuinely cannot load TypeScript, and say why in a comment at the top of the file. Currently the only JS file is `eslint.config.mjs`.
-- No `any` without a comment explaining why; prefer `unknown` + narrowing or zod at boundaries.
+- Use JavaScript only when a tool genuinely cannot load TypeScript: say why in a comment at the top of the file and add it to `ALLOWED_JS` in `scripts/check-no-js.mts` (run by `npm run lint`, so CI fails on any other `.js/.jsx/.mjs/.cjs`). There are currently no JS files; `eslint.config.ts` loads through `jiti`.
+- `tsconfig.json` has `allowJs: false` and `noUncheckedIndexedAccess: true`. For queries that always return a row (`insert … returning`, `count()`) use `one(rows)` from `src/db/rows.ts` instead of destructuring.
+- `any` is a lint error; when unavoidable use `// eslint-disable-next-line @typescript-eslint/no-explicit-any -- <why>`. Prefer `unknown` + narrowing or zod at boundaries. Type-only imports use `import type` / inline `type` (`consistent-type-imports`).
 
 ## Commands
 ```bash
@@ -23,7 +24,8 @@ npm run build
 npm run db:generate    # after editing src/db/schema.ts — commit the generated drizzle/ files
 npm run db:migrate | db:seed | db:import-osm
 ```
-Run typecheck, lint and tests before every push.
+Run typecheck, lint and tests before every push. `typecheck` runs `next typegen` first so `PageProps` exists on a clean checkout.
+CI (`.github/workflows/ci.yml`) runs typecheck, lint, tests (Postgres 16 service container) and build on every PR and push to `main`.
 
 ### Local Postgres (cloud sandbox)
 No Postgres runs by default, and it stops when the container restarts:
