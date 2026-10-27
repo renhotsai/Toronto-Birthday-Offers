@@ -1,5 +1,6 @@
 import { and, count, eq, gte, isNull, ne } from "drizzle-orm";
 import type { Db } from "@/db";
+import { one } from "@/db/rows";
 import { brands, locationReports, locations, offers, offerVotes, user, type ReportKind, type Role } from "@/db/schema";
 import { slugify } from "./status";
 import type { OfferInput, Submission } from "./validation";
@@ -25,10 +26,12 @@ async function uniqueSlug(db: Db, name: string) {
 
 export async function createSubmission(db: Db, actor: Actor, input: Submission, now = new Date()) {
   const since = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const [{ n }] = await db
-    .select({ n: count() })
-    .from(offers)
-    .where(and(eq(offers.createdBy, actor.id), gte(offers.createdAt, since)));
+  const { n } = one(
+    await db
+      .select({ n: count() })
+      .from(offers)
+      .where(and(eq(offers.createdBy, actor.id), gte(offers.createdAt, since))),
+  );
   if (n >= DAILY_SUBMISSION_LIMIT) throw new MutationError("rate_limited");
 
   return db.transaction(async (tx) => {
@@ -36,10 +39,12 @@ export async function createSubmission(db: Db, actor: Actor, input: Submission, 
     let brandSlug: string;
     if (input.newBrand) {
       const b = input.newBrand;
-      const [created] = await tx
-        .insert(brands)
-        .values({ slug: await uniqueSlug(tx as unknown as Db, b.name), name: b.name, kind: b.kind, category: b.category, website: b.website ?? null, createdBy: actor.id })
-        .returning();
+      const created = one(
+        await tx
+          .insert(brands)
+          .values({ slug: await uniqueSlug(tx as unknown as Db, b.name), name: b.name, kind: b.kind, category: b.category, website: b.website ?? null, createdBy: actor.id })
+          .returning(),
+      );
       brandId = created.id;
       brandSlug = created.slug;
       if (b.lat !== undefined && b.lng !== undefined) {
@@ -50,7 +55,7 @@ export async function createSubmission(db: Db, actor: Actor, input: Submission, 
       if (!existing) throw new MutationError("not_found");
       brandSlug = existing.slug;
     }
-    const [offer] = await tx.insert(offers).values({ ...input.offer, brandId: brandId!, createdBy: actor.id }).returning();
+    const offer = one(await tx.insert(offers).values({ ...input.offer, brandId: brandId!, createdBy: actor.id }).returning());
     return { offerId: offer.id, brandSlug };
   });
 }

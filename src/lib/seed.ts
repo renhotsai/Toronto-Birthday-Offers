@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 import type { Db } from "@/db";
+import { one } from "@/db/rows";
 import { brands, locations, offers } from "@/db/schema";
 import type { SeedOffer } from "../../data/seed-offers";
 import { slugify } from "./status";
@@ -12,10 +13,12 @@ export async function seedOffers(db: Db, seed: SeedOffer[]) {
     const slug = slugify(s.brand);
     let [brand] = await db.select().from(brands).where(eq(brands.slug, slug));
     if (!brand) {
-      [brand] = await db
-        .insert(brands)
-        .values({ slug, name: s.brand, kind: s.kind, category: s.category, website: s.website ?? null, osmName: s.osmName ?? null })
-        .returning();
+      brand = one(
+        await db
+          .insert(brands)
+          .values({ slug, name: s.brand, kind: s.kind, category: s.category, website: s.website ?? null, osmName: s.osmName ?? null })
+          .returning(),
+      );
       if (s.location) {
         await db.insert(locations).values({ brandId: brand.id, ...s.location, name: s.brand, source: "manual" });
       }

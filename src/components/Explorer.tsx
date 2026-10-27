@@ -76,8 +76,8 @@ export function Explorer({
     for (const o of filtered.list) byBrand.set(o.brandId, [...(byBrand.get(o.brandId) ?? []), o]);
     return locations.flatMap((l) => {
       const brandOffers = byBrand.get(l.brandId);
-      if (!brandOffers) return [];
-      const first = brandOffers[0];
+      const first = brandOffers?.[0];
+      if (!brandOffers || !first) return [];
       const items = brandOffers
         .map((o) => `<li>${escapeHtml((lang === "zh" && o.titleZh) || o.title)}</li>`)
         .join("");
