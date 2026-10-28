@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, ilike, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
+import { one } from "@/db/rows";
 import { brands, locationReports, locations, offers, offerVotes, user, type Category, type Window } from "@/db/schema";
 import { SITE } from "./site";
 
@@ -118,34 +119,61 @@ export async function getUserVotes(db: Db, userId: string) {
   return Object.fromEntries(rows.map((r) => [r.offerId, r.kind])) as Record<number, "valid" | "expired">;
 }
 
-export async function getModerationQueues(db: Db, now = new Date()) {
-  const staleBefore = new Date(now.getTime() - SITE.staleAfterDays * 24 * 60 * 60 * 1000);
-  const base = () =>
-    db.select(summaryColumns).from(offers).innerJoin(brands, eq(offers.brandId, brands.id)).leftJoin(user, eq(offers.createdBy, user.id));
-  const [unverified, stale, reports] = await Promise.all([
-    base().where(and(eq(offers.state, "active"), isNull(offers.verifiedAt))).orderBy(desc(offers.createdAt)),
-    base().where(and(eq(offers.state, "active"), isNotNull(offers.verifiedAt), lt(offers.verifiedAt, staleBefore))).orderBy(asc(offers.verifiedAt)),
-    db
-      .select({
-        id: locationReports.id,
-        kind: locationReports.kind,
-        note: locationReports.note,
-        createdAt: locationReports.createdAt,
-        locationId: locations.id,
-        locationAddress: locations.address,
-        locationName: locations.name,
-        brandName: brands.name,
-        brandSlug: brands.slug,
-        reporter: user.name,
-      })
-      .from(locationReports)
-      .innerJoin(locations, eq(locationReports.locationId, locations.id))
-      .innerJoin(brands, eq(locations.brandId, brands.id))
-      .innerJoin(user, eq(locationReports.userId, user.id))
-      .where(isNull(locationReports.resolvedAt))
-      .orderBy(asc(locationReports.createdAt)),
-  ]);
-  return { unverified: unverified.map(toSummary), stale: stale.map(toSummary), reports };
+// Shared by the admin tab counts and the tab lists, so a tab's count always matches its contents.
+const staleBefore = (now: Date) => new Date(now.getTime() - SITE.staleAfterDays * 24 * 60 * 60 * 1000);
+const unverifiedWhere = () => and(eq(offers.state, "active"), isNull(offers.verifiedAt));
+const staleWhere = (now: Date) => and(eq(offers.state, "active"), isNotNull(offers.verifiedAt), lt(offers.verifiedAt, staleBefore(now)));
+const openReportWhere = () => isNull(locationReports.resolvedAt);
+
+const moderationOffers = (db: Db) =>
+  db.select(summaryColumns).from(offers).innerJoin(brands, eq(offers.brandId, brands.id)).leftJoin(user, eq(offers.createdBy, user.id));
+
+export async function listUnverifiedOffers(db: Db) {
+  return (await moderationOffers(db).where(unverifiedWhere()).orderBy(desc(offers.createdAt))).map(toSummary);
+}
+
+export async function listStaleOffers(db: Db, now = new Date()) {
+  return (await moderationOffers(db).where(staleWhere(now)).orderBy(asc(offers.verifiedAt))).map(toSummary);
+}
+
+export async function listOpenReports(db: Db) {
+  return db
+    .select({
+      id: locationReports.id,
+      kind: locationReports.kind,
+      note: locationReports.note,
+      createdAt: locationReports.createdAt,
+      locationId: locations.id,
+      locationAddress: locations.address,
+      locationName: locations.name,
+      brandName: brands.name,
+      brandSlug: brands.slug,
+      reporter: user.name,
+    })
+    .from(locationReports)
+    .innerJoin(locations, eq(locationReports.locationId, locations.id))
+    .innerJoin(brands, eq(locations.brandId, brands.id))
+    .innerJoin(user, eq(locationReports.userId, user.id))
+    .where(openReportWhere())
+    .orderBy(asc(locationReports.createdAt));
+}
+
+export type ModerationCounts = { queue: number; stale: number; reports: number };
+
+/** Pending counts for the admin tab bar, in one round trip. Joins mirror the lists above. */
+export async function getModerationCounts(db: Db, now = new Date()): Promise<ModerationCounts> {
+  const count = () => sql<number>`count(*)::int`;
+  const queue = db.select({ n: count() }).from(offers).innerJoin(brands, eq(offers.brandId, brands.id)).where(unverifiedWhere());
+  const stale = db.select({ n: count() }).from(offers).innerJoin(brands, eq(offers.brandId, brands.id)).where(staleWhere(now));
+  const reports = db
+    .select({ n: count() })
+    .from(locationReports)
+    .innerJoin(locations, eq(locationReports.locationId, locations.id))
+    .innerJoin(brands, eq(locations.brandId, brands.id))
+    .innerJoin(user, eq(locationReports.userId, user.id))
+    .where(openReportWhere());
+  const result = await db.execute<ModerationCounts>(sql`select (${queue}) as queue, (${stale}) as stale, (${reports}) as reports`);
+  return one(result.rows);
 }
 
 export async function listUsers(db: Db) {

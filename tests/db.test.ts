@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Db } from "@/db";
 import { one } from "@/db/rows";
 import { brands, locations, offers, user } from "@/db/schema";
-import { getBrandPage, getModerationQueues, listOffers } from "@/lib/data";
+import { getBrandPage, getModerationCounts, listOffers, listOpenReports, listStaleOffers, listUnverifiedOffers } from "@/lib/data";
 import * as m from "@/lib/mutations";
 import { importBrandLocations } from "@/lib/osm";
 import { seedOffers } from "@/lib/seed";
@@ -70,12 +70,31 @@ describe.skipIf(!hasTestDb)("database", () => {
     const mod = await makeUser(db, "moderator");
     const o = one(await listOffers(db, { q: "sephora" }));
     await m.verifyOffer(db, mod, o.id, new Date("2026-01-01T00:00:00Z"));
-    const queues = await getModerationQueues(db, new Date("2026-10-27T00:00:00Z"));
-    expect(queues.unverified.some((x) => x.id === o.id)).toBe(false);
-    expect(queues.stale.some((x) => x.id === o.id)).toBe(true);
+    const now = new Date("2026-10-27T00:00:00Z");
+    expect((await listUnverifiedOffers(db)).some((x) => x.id === o.id)).toBe(false);
+    expect((await listStaleOffers(db, now)).some((x) => x.id === o.id)).toBe(true);
 
     await m.hideOffer(db, mod, o.id);
     expect(await listOffers(db, { q: "sephora" })).toHaveLength(0);
+  });
+
+  it("counts each admin tab exactly as many items as its list shows", async () => {
+    const now = new Date("2026-10-27T00:00:00Z");
+    const [mod, reporter] = [await makeUser(db, "moderator"), await makeUser(db)];
+    const old = one(await listOffers(db, { q: "booster" }));
+    await m.verifyOffer(db, mod, old.id, new Date("2025-01-01T00:00:00Z"));
+    const loc = one(await db.insert(locations).values({ brandId: old.brandId, lat: 43.65, lng: -79.38, source: "manual" }).returning());
+    await m.reportLocation(db, reporter, loc.id, "closed", null);
+
+    const counts = await getModerationCounts(db, now);
+    expect(counts).toEqual({
+      queue: (await listUnverifiedOffers(db)).length,
+      stale: (await listStaleOffers(db, now)).length,
+      reports: (await listOpenReports(db)).length,
+    });
+    expect(counts.queue).toBeGreaterThan(0);
+    expect(counts.stale).toBeGreaterThan(0);
+    expect(counts.reports).toBeGreaterThan(0);
   });
 
   it("merges duplicates and carries votes over without double counting", async () => {
@@ -109,7 +128,7 @@ describe.skipIf(!hasTestDb)("database", () => {
     const loc = one(await db.select().from(locations).where(eq(locations.osmId, "node/101")));
     await m.reportLocation(db, reporter, loc.id, "closed", null);
     await m.reportLocation(db, reporter, loc.id, "closed", null); // duplicate report is ignored
-    const { reports } = await getModerationQueues(db);
+    const reports = await listOpenReports(db);
     expect(reports.filter((r) => r.locationId === loc.id)).toHaveLength(1);
     await m.resolveReport(db, mod, reports.find((r) => r.locationId === loc.id)!.id, true);
 
