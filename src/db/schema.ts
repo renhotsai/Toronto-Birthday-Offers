@@ -114,6 +114,8 @@ export const locations = pgTable("locations", {
   // Hidden after a confirmed report (closed / not participating / wrong). Re-imports never un-hide.
   hidden: boolean("hidden").notNull().default(false),
   hiddenReason: reportKind("hidden_reason"),
+  // Who added it (users on /submit, moderators in admin); null for imports and seed data.
+  createdBy: text("created_by").references(() => user.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 }, (t) => [index("locations_brand_idx").on(t.brandId), uniqueIndex("locations_osm_idx").on(t.osmId)]);
 

@@ -38,7 +38,7 @@ cp .env.example .env        # 填入 DATABASE_URL、BETTER_AUTH_SECRET、ADMIN_E
 npm install
 npm run db:migrate          # 建立資料表
 npm run db:seed             # 匯入第一批 30 個優惠（都是「未查證」）
-npm run db:import-osm       # 從 OpenStreetMap 匯入連鎖店分店（可以重複執行）
+npm run db:import-osm       # 從 OpenStreetMap 匯入連鎖店分店（可以重複執行；會列出每個品牌找到／新增／對應到手動分店的數量）
 npm run dev
 ```
 

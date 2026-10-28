@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, isNotNull, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, ilike, isNotNull, isNull, lt, ne, not, or, sql } from "drizzle-orm";
 import type { Db } from "@/db";
 import { one } from "@/db/rows";
 import { brands, locationReports, locations, offers, offerVotes, user, type Category, type Window } from "@/db/schema";
@@ -110,8 +110,16 @@ export async function getBrandPage(db: Db, slug: string) {
   return { brand, offers: brandOffers.map(toSummary), locations: brandLocations };
 }
 
+/** Visible branches of one brand (public data), for the /submit map. */
+export async function listBrandBranches(db: Db, brandId: number) {
+  return db
+    .select({ id: locations.id, lat: locations.lat, lng: locations.lng, name: locations.name, address: locations.address })
+    .from(locations)
+    .where(and(eq(locations.brandId, brandId), eq(locations.hidden, false)));
+}
+
 export async function listBrandsForPicker(db: Db) {
-  return db.select({ id: brands.id, name: brands.name, kind: brands.kind }).from(brands).orderBy(asc(brands.name));
+  return db.select({ id: brands.id, name: brands.name, kind: brands.kind, category: brands.category }).from(brands).orderBy(asc(brands.name));
 }
 
 export async function getUserVotes(db: Db, userId: string) {
@@ -124,6 +132,10 @@ const staleBefore = (now: Date) => new Date(now.getTime() - SITE.staleAfterDays 
 const unverifiedWhere = () => and(eq(offers.state, "active"), isNull(offers.verifiedAt));
 const staleWhere = (now: Date) => and(eq(offers.state, "active"), isNotNull(offers.verifiedAt), lt(offers.verifiedAt, staleBefore(now)));
 const openReportWhere = () => isNull(locationReports.resolvedAt);
+const hasVisibleBranch = () =>
+  exists(sql`(select 1 from ${locations} where ${locations.brandId} = ${brands.id} and not ${locations.hidden})`);
+// Chains that don't show a single store on the map: the Locations tab's to-do list.
+const missingBranchesWhere = () => and(eq(brands.kind, "chain"), not(hasVisibleBranch()));
 
 const moderationOffers = (db: Db) =>
   db.select(summaryColumns).from(offers).innerJoin(brands, eq(offers.brandId, brands.id)).leftJoin(user, eq(offers.createdBy, user.id));
@@ -158,7 +170,52 @@ export async function listOpenReports(db: Db) {
     .orderBy(asc(locationReports.createdAt));
 }
 
-export type ModerationCounts = { queue: number; stale: number; reports: number };
+/** Brands that can have stores, chains without any visible store first. */
+export async function listLocationBrands(db: Db, q?: string) {
+  const where = [ne(brands.kind, "online")];
+  if (q) where.push(ilike(brands.name, `%${escapeLike(q)}%`));
+  return db
+    .select({
+      id: brands.id,
+      slug: brands.slug,
+      name: brands.name,
+      kind: brands.kind,
+      category: brands.category,
+      visible: sql<number>`(select count(*)::int from ${locations} l where l.brand_id = ${brands.id} and not l.hidden)`,
+      hidden: sql<number>`(select count(*)::int from ${locations} l where l.brand_id = ${brands.id} and l.hidden)`,
+      missing: sql<boolean>`${missingBranchesWhere()}`,
+    })
+    .from(brands)
+    .where(and(...where))
+    .orderBy(desc(sql`${missingBranchesWhere()}`), asc(brands.name));
+}
+
+/** One brand's stores for moderators, including hidden ones, who added them and how many reports they have. */
+export async function getLocationAdmin(db: Db, slug: string) {
+  const [brand] = await db.select().from(brands).where(eq(brands.slug, slug));
+  if (!brand) return null;
+  const rows = await db
+    .select({
+      id: locations.id,
+      lat: locations.lat,
+      lng: locations.lng,
+      name: locations.name,
+      address: locations.address,
+      source: locations.source,
+      osmId: locations.osmId,
+      hidden: locations.hidden,
+      hiddenReason: locations.hiddenReason,
+      createdBy: user.name,
+      reports: sql<number>`(select count(*)::int from ${locationReports} r where r.location_id = ${locations.id})`,
+    })
+    .from(locations)
+    .leftJoin(user, eq(locations.createdBy, user.id))
+    .where(eq(locations.brandId, brand.id))
+    .orderBy(asc(locations.hidden), asc(locations.address), asc(locations.id));
+  return { brand, locations: rows };
+}
+
+export type ModerationCounts = { queue: number; stale: number; reports: number; locations: number };
 
 /** Pending counts for the admin tab bar, in one round trip. Joins mirror the lists above. */
 export async function getModerationCounts(db: Db, now = new Date()): Promise<ModerationCounts> {
@@ -172,7 +229,10 @@ export async function getModerationCounts(db: Db, now = new Date()): Promise<Mod
     .innerJoin(brands, eq(locations.brandId, brands.id))
     .innerJoin(user, eq(locationReports.userId, user.id))
     .where(openReportWhere());
-  const result = await db.execute<ModerationCounts>(sql`select (${queue}) as queue, (${stale}) as stale, (${reports}) as reports`);
+  const missing = db.select({ n: count() }).from(brands).where(missingBranchesWhere());
+  const result = await db.execute<ModerationCounts>(
+    sql`select (${queue}) as queue, (${stale}) as stale, (${reports}) as reports, (${missing}) as locations`,
+  );
   return one(result.rows);
 }
 

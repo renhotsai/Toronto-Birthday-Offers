@@ -6,7 +6,7 @@ import { useMemo, useState, useTransition } from "react";
 import { reportLocation } from "@/app/actions";
 import { getDictionary, type Locale } from "@/i18n";
 import { REPORT_KINDS, type ReportKind } from "@/lib/constants";
-import { escapeHtml } from "./map-utils";
+import { storePopup } from "./map-utils";
 
 const MapView = dynamic(() => import("./MapView"), { ssr: false, loading: () => <div className="h-80 animate-pulse rounded-2xl bg-neutral-soft" /> });
 
@@ -19,7 +19,7 @@ export function BrandLocations({ lang, icon, locations, signedIn }: { lang: Loca
     () =>
       locations
         .filter((l) => !l.hidden)
-        .map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, icon, popupHtml: escapeHtml(l.address ?? l.name ?? "") })),
+        .map((l) => ({ id: l.id, lat: l.lat, lng: l.lng, icon, popupHtml: storePopup(l.name, l.address) })),
     [locations, icon],
   );
 
