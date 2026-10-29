@@ -12,7 +12,8 @@ import * as m from "@/lib/mutations";
 import type * as SessionModule from "@/lib/session";
 import type * as NominatimModule from "@/lib/nominatim";
 import type { Place } from "@/lib/nominatim";
-import { importAll, importBrandLocations, type OverpassElement } from "@/lib/osm";
+import type * as OsmModule from "@/lib/osm";
+import { importAll, importBrandLocations, type OsmStore, type OverpassElement } from "@/lib/osm";
 import { seedOffers } from "@/lib/seed";
 import { SEED_OFFERS } from "../data/seed-offers";
 import { freshDb, hasTestDb, makeUser } from "./helpers";
@@ -22,6 +23,9 @@ const fake = vi.hoisted(() => ({
   db: null as Db | null,
   user: null as { id: string; name: string; email: string; role: "user" | "moderator" | "admin" } | null,
   places: new Map<string, Place>(),
+  // OpenStreetMap stores by brand name (lowercase) for the faked Overpass preview; "fail" makes it throw.
+  osm: new Map<string, OsmStore[] | "fail">(),
+  osmCalls: [] as string[],
 }));
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));
 vi.mock("@/db", async (importOriginal) => ({
@@ -39,6 +43,15 @@ vi.mock("@/lib/session", async (importOriginal) => {
     },
   };
 });
+vi.mock("@/lib/osm", async (importOriginal) => ({
+  ...(await importOriginal<typeof OsmModule>()),
+  previewBrandStores: async (name: string) => {
+    fake.osmCalls.push(name);
+    const stores = fake.osm.get(name.toLowerCase()) ?? [];
+    if (stores === "fail") throw new Error("Overpass 504");
+    return { osmName: stores[0]?.brand ?? null, stores };
+  },
+}));
 vi.mock("@/lib/nominatim", async (importOriginal) => ({
   ...(await importOriginal<typeof NominatimModule>()),
   lookupPlace: async (ref: string) => fake.places.get(ref) ?? null,
@@ -356,6 +369,39 @@ describe.skipIf(!hasTestDb)("database", () => {
     expect(await actions.addLocation(brand.id, { ...loc, lat: 49.28, lng: -123.12 })).toMatchObject({ ok: false, error: "invalid" });
     expect(await actions.addLocation(brand.id, loc)).toMatchObject({ ok: true });
     fake.user = null;
+  });
+
+  it("searching a chain with no stores saves what OpenStreetMap lists, once", async () => {
+    const actions = await import("@/app/actions");
+    const u = await makeUser(db);
+    fake.user = { ...u, name: "Searcher", email: "searcher@example.com" };
+    const chain = one(await db.insert(brands).values({ slug: "fresh-chain", name: "Fresh Chain", kind: "chain", category: "food" }).returning());
+    const store = (id: number, lat: number): OsmStore => ({ osmId: `node/${id}`, lat, lng: -79.4, name: "Fresh Chain", address: `${id} King St, Toronto`, brand: "Fresh Chain" });
+    fake.osm.set("fresh chain", [store(4001, 43.65), store(4002, 43.66)]);
+    fake.osmCalls.length = 0;
+
+    const first = await actions.findBrandStores(chain.id);
+    expect(first).toMatchObject({ ok: true, data: { osm: { found: 2, added: 2, updated: 0 } } });
+    expect(first.ok && first.data.stores).toHaveLength(2);
+    expect((await brandBySlug("fresh-chain")).osmName).toBe("Fresh Chain");
+    expect((await brandLocations(chain.id)).map((l) => [l.osmId, l.source])).toEqual([["node/4001", "osm"], ["node/4002", "osm"]]);
+
+    // Now it has stores: the database answers and OSM isn't asked again.
+    const second = await actions.findBrandStores(chain.id);
+    expect(second).toMatchObject({ ok: true, data: { osm: null } });
+    expect(fake.osmCalls).toEqual(["Fresh Chain"]);
+    expect(await brandLocations(chain.id)).toHaveLength(2);
+
+    // OSM down or without the brand: nothing saved, and the user is told so.
+    const quiet = one(await db.insert(brands).values({ slug: "quiet-chain", name: "Quiet Chain", kind: "chain", category: "food", osmName: "Quiet" }).returning());
+    fake.osm.set("quiet", "fail");
+    expect(await actions.findBrandStores(quiet.id)).toMatchObject({ ok: true, data: { stores: [], osm: "unavailable" } });
+    fake.osm.set("quiet", []);
+    expect(await actions.findBrandStores(quiet.id)).toMatchObject({ ok: true, data: { stores: [], osm: { found: 0, added: 0 } } });
+    expect((await brandBySlug("quiet-chain")).osmName).toBe("Quiet"); // an existing OSM name is kept
+
+    fake.user = null;
+    expect(await actions.findBrandStores(chain.id)).toMatchObject({ ok: false, error: "unauthorized" });
   });
 
   it("lets admins change roles but not their own", async () => {

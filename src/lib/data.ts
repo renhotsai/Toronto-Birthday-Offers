@@ -110,6 +110,11 @@ export async function getBrandPage(db: Db, slug: string) {
   return { brand, offers: brandOffers.map(toSummary), locations: brandLocations };
 }
 
+export async function getBrandById(db: Db, id: number) {
+  const [brand] = await db.select().from(brands).where(eq(brands.id, id));
+  return brand ?? null;
+}
+
 /** Visible branches of one brand (public data), for the /submit map. */
 export async function listBrandBranches(db: Db, brandId: number) {
   return db

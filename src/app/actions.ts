@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { db } from "@/db";
 import { userRole } from "@/db/schema";
-import { listBrandBranches } from "@/lib/data";
+import { getBrandById, listBrandBranches } from "@/lib/data";
 import * as m from "@/lib/mutations";
 import { lookupPlace, searchPlaces, type Place } from "@/lib/nominatim";
 import { OverpassError, previewBrandStores, type BrandPreview } from "@/lib/osm";
@@ -106,6 +106,30 @@ export async function previewChainStores(name: unknown) {
 
 export async function getBrandBranches(brandId: unknown) {
   return run(async () => listBrandBranches(db, id.parse(brandId)), { revalidate: false });
+}
+
+/**
+ * A brand searched on /submit: its stores from our database, or, for a chain with none yet, the stores
+ * OpenStreetMap lists for it, which are saved right away. `osm` says what the OSM lookup did, if it ran.
+ */
+export async function findBrandStores(brandId: unknown) {
+  return run(async () => {
+    const me = await requireUser();
+    const brandIdN = id.parse(brandId);
+    const stores = await listBrandBranches(db, brandIdN);
+    const brand = await getBrandById(db, brandIdN);
+    if (!brand) throw new m.MutationError("not_found");
+    if (stores.length || brand.kind !== "chain") return { stores, osm: null };
+    if (!previewLimit(me.id)) throw new m.MutationError("rate_limited");
+    let preview: BrandPreview;
+    try {
+      preview = await previewBrandStores(brand.osmName ?? brand.name);
+    } catch {
+      return { stores, osm: "unavailable" as const };
+    }
+    const result = await m.adoptBrandStores(db, brandIdN, preview);
+    return { stores: await listBrandBranches(db, brandIdN), osm: result };
+  });
 }
 
 /** Adds a store missing from an existing brand. Only a geocoding result can be added, looked up again here. */

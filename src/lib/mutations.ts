@@ -65,6 +65,21 @@ export async function addBranch(db: Db, actor: Actor, brandId: number, place: Pl
   });
 }
 
+/**
+ * Saves the OpenStreetMap stores found for an existing brand that had none on the map (searching a brand on
+ * /submit records what OSM has). Fills the brand's osm_name when it has none, so later imports keep it current.
+ */
+export async function adoptBrandStores(db: Db, brandId: number, preview: BrandPreview) {
+  return db.transaction(async (tx) => {
+    const [brand] = await tx.select({ osmName: brands.osmName }).from(brands).where(eq(brands.id, brandId));
+    if (!brand) throw new MutationError("not_found");
+    if (!brand.osmName && preview.osmName && preview.stores.length) {
+      await tx.update(brands).set({ osmName: preview.osmName }).where(eq(brands.id, brandId));
+    }
+    return importBrandStores(tx as unknown as Db, brandId, preview.stores);
+  });
+}
+
 // Resolved by the server action before the transaction (network calls): the picked branch, and for a new chain
 // whose OSM stores the user confirmed, those stores.
 export type SubmissionExtras = { branch?: Place; osm?: BrandPreview };

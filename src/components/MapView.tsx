@@ -62,7 +62,8 @@ export default function MapView({
     }
     // Fit to markers only when the set of points is small and local (e.g. brand page), unless asked to.
     if (points.length > 0 && (fitAll || points.length <= 30) && map.current) {
-      map.current.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])), { maxZoom: 15, padding: [30, 30] });
+      // No animation: removing the map mid-animation (e.g. searching another brand) makes Leaflet throw.
+      map.current.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])), { maxZoom: 15, padding: [30, 30], animate: false });
     }
   }, [points, fitAll]);
 
@@ -91,7 +92,7 @@ export default function MapView({
     }
     // Don't jump around while someone fine-tunes the pin: only move when it's off screen or zoomed far out.
     const m = map.current;
-    if (m && (m.getZoom() < 14 || !m.getBounds().contains(spot))) m.setView(spot, Math.max(m.getZoom(), 14));
+    if (m && (m.getZoom() < 14 || !m.getBounds().contains(spot))) m.setView(spot, Math.max(m.getZoom(), 14), { animate: false });
   }, [me, picked, draggable]);
 
   return <div ref={el} className={`w-full overflow-hidden rounded-2xl border border-border ${onPick ? "cursor-crosshair" : ""} ${className}`} />;

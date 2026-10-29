@@ -52,7 +52,7 @@ Never `pkill -f` a pattern that also matches your own shell command — kill by 
 - `src/db/schema.ts` Drizzle schema (+ Better Auth tables). Enums come from `src/lib/constants.ts`; use relative imports in `schema.ts` (drizzle-kit doesn't resolve `@/`).
 - `src/lib/status.ts` verification decay (`SITE.staleAfterDays`), distance, slugify. `src/lib/site.ts` name/URL/bounds.
 - `data/seed-offers.ts` + `src/lib/seed.ts` (idempotent); `src/lib/osm.ts` Overpass importer (never touches hidden rows or rows that already have an `osm_id`; the one exception, agreed in #1: a visible manual row of the same brand without `osm_id` within 50 m is updated in place with OSM's data, once).
-- Locations (#1): any signed-in user adds a missing store on `/submit` by picking a geocoding result; the server re-looks it up (`src/lib/nominatim.ts`), never trusting client coordinates. Moderators manage stores in Admin → Locations. Never copy coordinates or place data from Google Maps — only Nominatim/OSM.
+- Locations (#1): searching a brand on `/submit` records what it finds — stores from our DB, or for a chain with none, the stores OSM lists (saved right away; for a new brand, with the offer). Any signed-in user adds a missing store by picking a geocoding result; the server re-looks it up (`src/lib/nominatim.ts`), never trusting client coordinates. Moderators manage stores in Admin → Locations. Never copy coordinates or place data from Google Maps — only Nominatim/OSM.
 - Nominatim/Overpass are called only from the server with `SITE.userAgent`, throttled to 1 req/s per instance and cached (`src/lib/throttle.ts`); no search-as-you-type.
 - Roles: `user` < `moderator` < `admin`; `ADMIN_EMAILS` become admin on first sign-in.
 
