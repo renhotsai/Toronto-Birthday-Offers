@@ -8,7 +8,7 @@ import { CATEGORY_ICON } from "@/lib/constants";
 import { db } from "@/db";
 import { getDictionary, hasLocale } from "@/i18n";
 import { getBrandPage, getUserVotes } from "@/lib/data";
-import { getCurrentUser } from "@/lib/session";
+import { getCurrentUser, hasRole } from "@/lib/session";
 
 export async function generateMetadata({ params }: PageProps<"/[lang]/brands/[slug]">): Promise<Metadata> {
   const { lang, slug } = await params;
@@ -62,7 +62,12 @@ export default async function BrandPage({ params }: PageProps<"/[lang]/brands/[s
 
       {brand.kind !== "online" && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">{t.brand.locations}</h2>
+          <div className="flex items-center justify-between gap-2">
+            <h2 className="text-lg font-semibold">{t.brand.locations}</h2>
+            {hasRole(me, "moderator") && (
+              <Link href={`/${lang}/admin/locations?brand=${brand.slug}`} className="text-sm text-accent underline">{t.brand.manage}</Link>
+            )}
+          </div>
           <BrandLocations lang={lang} icon={CATEGORY_ICON[brand.category]} locations={page.locations} signedIn={!!me} />
         </section>
       )}

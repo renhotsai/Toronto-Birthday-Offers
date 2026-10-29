@@ -22,6 +22,7 @@ export const ADMIN_TABS = [
   { key: "queue", minRole: "moderator", count: "queue" },
   { key: "stale", minRole: "moderator", count: "stale" },
   { key: "reports", minRole: "moderator", count: "reports" },
+  { key: "locations", minRole: "moderator", count: "locations" },
   { key: "users", minRole: "admin", count: null },
-] as const satisfies readonly { key: string; minRole: Role; count: "queue" | "stale" | "reports" | null }[];
+] as const satisfies readonly { key: string; minRole: Role; count: "queue" | "stale" | "reports" | "locations" | null }[];
 export type AdminTab = (typeof ADMIN_TABS)[number]["key"];

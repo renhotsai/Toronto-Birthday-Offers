@@ -7,12 +7,16 @@ import { SITE } from "@/lib/site";
 import type { MapPoint } from "./map-utils";
 
 export default function MapView({
-  points, me, onPick, picked, className = "h-[65vh]",
+  points, me, onPick, picked, draggable = false, fitAll = false, className = "h-[65vh]",
 }: {
   points: MapPoint[];
   me?: [number, number] | null;
   onPick?: (lat: number, lng: number) => void;
   picked?: [number, number] | null;
+  // The picked pin can be dragged (reported through onPick).
+  draggable?: boolean;
+  // Fit the view to every point, however many (e.g. all stores of one chain).
+  fitAll?: boolean;
   className?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
@@ -56,20 +60,40 @@ export default function MapView({
         .bindPopup(p.popupHtml, { maxWidth: 260 })
         .addTo(group);
     }
-    // Fit to markers only when the set of points is small and local (e.g. brand page).
-    if (points.length > 0 && points.length <= 30 && map.current) {
-      map.current.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])), { maxZoom: 15, padding: [30, 30] });
+    // Fit to markers only when the set of points is small and local (e.g. brand page), unless asked to.
+    if (points.length > 0 && (fitAll || points.length <= 30) && map.current) {
+      // No animation: removing the map mid-animation (e.g. searching another brand) makes Leaflet throw.
+      map.current.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng])), { maxZoom: 15, padding: [30, 30], animate: false });
     }
-  }, [points]);
+  }, [points, fitAll]);
 
   useEffect(() => {
     const group = meLayer.current!;
     group.clearLayers();
     const spot = picked ?? me;
     if (!spot) return;
-    L.circleMarker(spot, { radius: 9, color: "#2563eb", fillColor: "#3b82f6", fillOpacity: 0.9, weight: 3 }).addTo(group);
-    map.current?.setView(spot, Math.max(map.current.getZoom(), 14));
-  }, [me, picked]);
+    if (picked && draggable) {
+      L.marker(spot, {
+        draggable: true,
+        icon: L.divIcon({
+          className: "",
+          html: '<span style="display:block;width:22px;height:22px;background:#3b82f6;border:3px solid #2563eb;border-radius:50%;box-shadow:0 1px 4px rgb(0 0 0/.35)"></span>',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        }),
+      })
+        .on("dragend", (e) => {
+          const { lat, lng } = (e.target as L.Marker).getLatLng();
+          onPickRef.current?.(lat, lng);
+        })
+        .addTo(group);
+    } else {
+      L.circleMarker(spot, { radius: 9, color: "#2563eb", fillColor: "#3b82f6", fillOpacity: 0.9, weight: 3 }).addTo(group);
+    }
+    // Don't jump around while someone fine-tunes the pin: only move when it's off screen or zoomed far out.
+    const m = map.current;
+    if (m && (m.getZoom() < 14 || !m.getBounds().contains(spot))) m.setView(spot, Math.max(m.getZoom(), 14), { animate: false });
+  }, [me, picked, draggable]);
 
   return <div ref={el} className={`w-full overflow-hidden rounded-2xl border border-border ${onPick ? "cursor-crosshair" : ""} ${className}`} />;
 }
